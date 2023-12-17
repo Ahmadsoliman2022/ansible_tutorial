@@ -4,40 +4,57 @@
    become: true
    pre_tasks:
  
-   - name: update repository index (CentOS)
+   - name: install updates (CentOS)
      tags: always
      dnf:
+       update_only: yes
        update_cache: yes
-     changed_when: false
      when: ansible_distribution == "CentOS"
  
-   - name: update repository index (Ubuntu)
+   - name: install updates (Ubuntu)
      tags: always
      apt:
+       upgrade: dist
        update_cache: yes
-     changed_when: false
+       force_apt_get: yes
      when: ansible_distribution == "Ubuntu"
- 
+
  - hosts: all
    become: true
    tasks:
- 
+
+   - name: create simone user
+     tags: always
+     user:
+       name: simone
+       groups: root
+
    - name: add ssh key for simone
+     tags: always
      authorized_key:
        user: simone
-       key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAe7/ofWLNBq3+fRn3UmgAizdicLs9vcS4Oj8VSOD1S/ ansible"
+       key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICjlkX9cl8CkMeEsi0Q6OHNXtleRhhl0FRWx3nB0bpTH Ansible"
+         
+   - name: add sudoers file for simone
+     tags: always
+     copy:
+       src: sudoer_simone
+       dest: /etc/sudoers.d/simone
+       owner: root
+       group: root
+       mode: 0440
  
  - hosts: workstations
    become: true
    tasks:
- 
+
    - name: install unzip
      package:
        name: unzip
  
    - name: install terraform
      unarchive:
-       src: https://releases.hashicorp.com/terraform/0.12.28/terraform_0.12.28_linux_amd64.zip
+       src: https://releases.hashicorp.com/terraform/1.6.3/terraform_1.6.3_linux_amd64.zip
        dest: /usr/local/bin
        remote_src: yes
        mode: 0755
@@ -56,7 +73,7 @@
          - php
        state: latest
      when: ansible_distribution == "CentOS"
- 
+
    - name: start and enable httpd (CentOS)
      tags: apache,centos,httpd
      service:
@@ -64,16 +81,7 @@
        state: started
        enabled: yes
      when: ansible_distribution == "CentOS"
- 
-   - name: install apache2 package (Ubuntu)
-     tags: apache,apache2,ubuntu
-     apt:
-       name:
-         - apache2
-         - libapache2-mod-php
-       state: latest
-     when: ansible_distribution == "Ubuntu"
- 
+
    - name: change e-mail address for admin
      tags: apache,centos,httpd
      lineinfile:
@@ -88,7 +96,17 @@
      service:
        name: httpd
        state: restarted
-     when: httpd.changed    
+     when: httpd.changed 
+ 
+   - name: install apache2 package (Ubuntu)
+     tags: apache,apache2,ubuntu
+     apt:
+       name:
+         - apache2
+         - libapache2-mod-php
+       state: latest
+     when: ansible_distribution == "Ubuntu"
+
  
    - name: copy html file for site
      tags: apache,apache,apache2,httpd
@@ -126,3 +144,4 @@
      tags: samba
      package:
        name: samba
+       state: latest
